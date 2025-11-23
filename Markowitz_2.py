@@ -61,21 +61,21 @@ class MyPortfolio:
     def calculate_weights(self):
         # Get the assets by excluding the specified column
         assets = self.price.columns[self.price.columns != self.exclude]
-
+        
         # Calculate the portfolio weights
         self.portfolio_weights = pd.DataFrame(
             index=self.price.index, columns=self.price.columns
         )
-
-        """
-        TODO: Complete Task 4 Below
-        """
+        self.portfolio_weights[:] = 0.0 # Initialize with 0
         
-        
-        """
-        TODO: Complete Task 4 Above
-        """
+        # Static Strategy: 100% XLK
+        if 'XLK' in assets:
+            self.portfolio_weights['XLK'] = 1.0
+        else:
+            # Fallback if XLK is not available (should not happen based on problem desc)
+            self.portfolio_weights[assets[0]] = 1.0
 
+        # Forward fill the weights to hold positions between rebalancing
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
 

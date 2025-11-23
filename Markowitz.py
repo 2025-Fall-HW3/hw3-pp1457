@@ -59,13 +59,9 @@ class EqualWeightPortfolio:
         assets = df.columns[df.columns != self.exclude]
         self.portfolio_weights = pd.DataFrame(index=df.index, columns=df.columns)
 
-        """
-        TODO: Complete Task 1 Below
-        """
-
-        """
-        TODO: Complete Task 1 Above
-        """
+        n_assets = len(assets)
+        weight = 1.0 / n_assets
+        self.portfolio_weights[assets] = weight
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
 
@@ -110,15 +106,18 @@ class RiskParityPortfolio:
         # Calculate the portfolio weights
         self.portfolio_weights = pd.DataFrame(index=df.index, columns=df.columns)
 
-        """
-        TODO: Complete Task 2 Below
-        """
-
-
-
-        """
-        TODO: Complete Task 2 Above
-        """
+        for i in range(self.lookback + 1, len(df)):
+            # Calculate volatility (standard deviation) for the lookback period
+            volatility = df_returns[assets].iloc[i - self.lookback : i].std()
+            
+            # Calculate inverse volatility
+            inv_volatility = 1 / volatility
+            
+            # Calculate weights
+            weights = inv_volatility / inv_volatility.sum()
+            
+            # Assign weights to the portfolio
+            self.portfolio_weights.loc[df.index[i], assets] = weights
 
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
@@ -184,18 +183,23 @@ class MeanVariancePortfolio:
             env.setParam("DualReductions", 0)
             env.start()
             with gp.Model(env=env, name="portfolio") as model:
-                """
-                TODO: Complete Task 3 Below
-                """
-
-                # Sample Code: Initialize Decision w and the Objective
-                # NOTE: You can modify the following code
-                w = model.addMVar(n, name="w", ub=1)
-                model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
-
-                """
-                TODO: Complete Task 3 Above
-                """
+                # Define the decision variables
+                w = model.addMVar(n, name="w", lb=0.0, ub=1.0)
+                
+                # Define the objective function: Maximize w^T * mu - (gamma / 2) * w^T * Sigma * w
+                # Note: Gurobi minimizes by default if not specified, but here we want to maximize utility
+                # Utility = Return - Risk_Penalty
+                # We can also minimize: (gamma / 2) * w^T * Sigma * w - w^T * mu
+                
+                # Using matrix multiplication with MVar
+                # Objective: maximize mu @ w - 0.5 * gamma * (w @ Sigma @ w)
+                
+                obj = mu @ w - 0.5 * gamma * (w @ Sigma @ w)
+                model.setObjective(obj, gp.GRB.MAXIMIZE)
+                
+                # Add constraints
+                # 1. Sum of weights = 1 (Budget constraint)
+                model.addConstr(w.sum() == 1, name="budget")
                 model.optimize()
 
                 # Check if the status is INF_OR_UNBD (code 4)
